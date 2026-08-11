@@ -1,0 +1,18 @@
+// _test-img-migrate.js — 验证 auto-pipeline-fetch.js 的 require 链 + migrateImgToGH 重复上传兜底
+process.chdir('D:/Reasonix部署/迅雷转存/xl-share');
+// 触发 require 时 auto-pipeline-fetch.js 是自执行入口？检查：它在 IIFE 里，require 不会自动跑 main
+// 但为了安全，只 require gh-img.js 测 uploadToGitHubImg 的 EXISTS 兜底
+const { uploadToGitHubImg } = require('./gh-img');
+const fs = require('fs');
+const buf = fs.readFileSync(__filename); // 用本文件做测试 buffer，文件名用唯一测试名
+(async () => {
+  const r = await uploadToGitHubImg(buf, 'test-xl-share-probe.txt');
+  console.log('1st:', r);
+  // 第二次同 content 应返回 422/409 → created:false
+  const r2 = await uploadToGitHubImg(buf, 'test-xl-share-probe.txt');
+  console.log('2nd:', r2);
+  // 同样名字但不同内容 → 409（已存在同名 + 不同 sha 会被拒，但已是同名冲突）
+  const buf2 = Buffer.from('different content ' + Date.now());
+  const r3 = await uploadToGitHubImg(buf2, 'test-xl-share-probe.txt');
+  console.log('3rd (same name diff content):', r3);
+})();
